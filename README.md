@@ -1,4 +1,4 @@
-# WFO Plantlist SQLite
+# World Flora Online Plant List SQLite Utilities
 
 This repo holds some utilities to help convert the data from the [World Flora Online Plant List](https://wfoplantlist.org) into a SQLite database.
 
