@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Usage ./wfo_plantlist_to_sqlite.sh wfo_plantlist_2024_06.db ../wfo_plantlist
+# Usage ./wfo_plantlist_to_sqlite.sh wfo_plantlist_2025-06.db ../wfo_plantlist_2025-06
 
 #
 # Create the name table
@@ -49,7 +49,7 @@ pragma foreign_keys = on;
 drop table if exists reference;
 
 create table reference (
-  id text,
+  ID text,
   citation text,
   link text,
   doi text,
@@ -76,7 +76,7 @@ pragma foreign_keys = on;
 drop table if exists synonym;
 
 create table synonym (
-    id text,
+    ID text,
     taxonID text,
     nameID text,
     accordingToID text,
@@ -104,7 +104,7 @@ pragma foreign_keys = on;
 drop table if exists taxon;
 
 create table taxon (
-    id text,
+    ID text,
     nameID text,
     parentID text,
     accordingToID text,
@@ -128,5 +128,29 @@ SQL
 #
 echo "Importing the taxon table..."
 sqlite3 "$1" ".mode tabs" ".import --skip 1 $2/taxon.tsv taxon"
+
+#
+# Create the typematerial table
+#
+sqlite3 "$1" <<'SQL'
+pragma journal_mode = memory;
+pragma foreign_keys = on;
+
+drop table if exists typematerial;
+
+create table typematerial (
+    ID text,
+    nameID text,
+    citation text,
+    link text
+);
+
+SQL
+
+#
+# Import the typematerial table
+#
+echo "Importing the typematerial table..."
+sqlite3 "$1" ".mode tabs" ".import --skip 1 $2/typematerial.tsv typematerial"
 
 sqlite3 "$1" "vacuum;"
