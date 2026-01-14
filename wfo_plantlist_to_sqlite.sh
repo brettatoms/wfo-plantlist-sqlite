@@ -1,163 +1,45 @@
 #!/usr/bin/env bash
 #
-# Usage ./wfo_plantlist_to_sqlite.sh wfo_plantlist_2025-06.db ../wfo_plantlist_2025-06
-
+# Import WFO Plant List TSV files into a SQLite database
 #
-# Create the reference table
+# Usage: ./wfo_plantlist_to_sqlite.sh wfo_plantlist_2025-06.db ../wfo_plantlist_2025-06
 #
-sqlite3 "$1" <<'SQL'
-pragma journal_mode = memory;
-pragma foreign_keys = on;
+# Tables are auto-created from TSV headers, making this resilient to schema changes.
+# Run add_foreign_keys.sql after import to add FK constraints.
 
-drop table if exists reference;
+set -e
 
-create table reference (
-  ID text,
-  citation text,
-  link text,
-  doi text,
-  remarks text
-);
+if [ $# -ne 2 ]; then
+    echo "Usage: $0 <database.db> <path-to-tsv-files>"
+    exit 1
+fi
 
--- create index reference_id_idx on reference (id);
+DB="$1"
+TSV_DIR="$2"
 
-SQL
+sqlite3 "$DB" "pragma journal_mode = memory;"
 
-#
-# Import the reference table
-#
-echo "Importing the reference table..."
-sqlite3 "$1" ".mode tabs" ".import --skip 1 $2/reference.tsv reference"
+echo "Importing reference..."
+sqlite3 "$DB" ".mode tabs" ".import $TSV_DIR/reference.tsv reference"
 
-#
-# Create the name table
-#
-sqlite3 "$1" <<'SQL'
-pragma journal_mode = memory;
-pragma foreign_keys = on;
+echo "Importing name..."
+sqlite3 "$DB" ".mode tabs" ".import $TSV_DIR/name.tsv name"
 
-drop table if exists name;
+echo "Importing taxon..."
+sqlite3 "$DB" ".mode tabs" ".import $TSV_DIR/taxon.tsv taxon"
 
-create table name (
-    ID text,
-    alternativeID text,
-    basionymID text,
-    scientificName text,
-    authorship text,
-    rank text,
-    uninomial text,
-    genus text,
-    infragenericEpithet text,
-    specificEpithet text,
-    infraspecificEpithet text,
-    code text,
-    referenceID text,
-    publishedInYear text,
-    link text,
-    foreign key (referenceID) references reference(ID)
-    foreign key (basionymID) references name(ID)
-);
+echo "Importing synonym..."
+sqlite3 "$DB" ".mode tabs" ".import $TSV_DIR/synonym.tsv synonym"
 
--- create index name_id_idx on name (ID);
--- create index name_scientific_name_idx on name (scientificName);
-SQL
+echo "Importing typematerial..."
+sqlite3 "$DB" ".mode tabs" ".import $TSV_DIR/typematerial.tsv typematerial"
 
-#
-# Import the name table
-#
-echo "Importing the name table..."
-sqlite3 "$1" ".mode tabs" ".import --skip 1 $2/name.tsv name"
+echo "Creating indexes..."
+sqlite3 "$DB" "CREATE INDEX taxon_id_idx ON taxon(ID);"
+sqlite3 "$DB" "CREATE INDEX taxon_name_id_idx ON taxon(nameID);"
+sqlite3 "$DB" "CREATE INDEX taxon_parent_id_idx ON taxon(parentID);"
 
-#
-# Create the synonym table
-#
-sqlite3 "$1" <<'SQL'
-pragma journal_mode = memory;
-pragma foreign_keys = on;
+echo "Vacuuming..."
+sqlite3 "$DB" "vacuum;"
 
-drop table if exists synonym;
-
-create table synonym (
-    ID text,
-    taxonID text,
-    nameID text,
-    accordingToID text,
-    referenceID text,
-    link text,
-    foreign key (accordingToID) references reference(ID),
-    foreign key (taxonID) references taxon(ID),
-    foreign key (nameID) references name(ID)
-);
-
--- create index synonym_id_idx on synonym (id);
-
-SQL
-
-#
-# Import the synonym table
-#
-echo "Importing the synonym table..."
-sqlite3 "$1" ".mode tabs" ".import --skip 1 $2/synonym.tsv synonym"
-
-#
-# Create the taxon table
-#
-sqlite3 "$1" <<'SQL'
-pragma journal_mode = memory;
-pragma foreign_keys = on;
-
-drop table if exists taxon;
-
-create table taxon (
-    ID text,
-    nameID text,
-    parentID text,
-    accordingToID text,
-    scrutinizer text,
-    scrutinizerID text,
-    scrutinizerDate text,
-    referenceID text,
-    link text,
-    foreign key(nameID) references name(ID),
-    foreign key(parentID) references taxon(ID),
-    foreign key (accordingToID) references reference(ID)
-);
-
-create index taxon_id_idx on taxon (id);
-create index taxon_name_id_idx on taxon(nameID);
-create index taxon_parent_id_idx on taxon(parentID);
-
-SQL
-
-#
-# Import the taxon table
-#
-echo "Importing the taxon table..."
-sqlite3 "$1" ".mode tabs" ".import --skip 1 $2/taxon.tsv taxon"
-
-#
-# Create the typematerial table
-#
-sqlite3 "$1" <<'SQL'
-pragma journal_mode = memory;
-pragma foreign_keys = on;
-
-drop table if exists typematerial;
-
-create table typematerial (
-    ID text,
-    nameID text,
-    citation text,
-    link text,
-    foreign key(nameID) references name(ID)
-);
-
-SQL
-
-#
-# Import the typematerial table
-#
-echo "Importing the typematerial table..."
-sqlite3 "$1" ".mode tabs" ".import --skip 1 $2/typematerial.tsv typematerial"
-
-sqlite3 "$1" "vacuum;"
+echo "Done."
