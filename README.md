@@ -29,7 +29,7 @@ Example usage:
 
 ### denormalize.sql
 
-Denormalize the `name.rank` and `name.code` columns into separate lookup tables.
+Denormalize the `name.rank` and `name.code` columns into separate lookup tables.  The version of the database uploaded to Zenodo doesn't have the denormalized columns.
 
 Example usage:
 ```sh
